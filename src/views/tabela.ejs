@@ -446,6 +446,7 @@
         <teleport to="body">
             <div
                 v-if="menu_coluna_aberto"
+                ref="menu_coluna"
                 class="dropdown-menu show column-menu"
                 :style="{
                     position: 'absolute',
@@ -469,7 +470,18 @@
                         class="dropdown-item"
                         @click="executar_operacao(menu_coluna_aberto, operacao)"
                     >
-                        {{ operacao }}
+                        <span class="col-menu-item">
+                            <span class="col-menu-item__label">
+                                {{ rotulos_operacoes[operacao] || operacao }}
+                            </span>
+
+                            <span
+                                v-if="dicas_operacoes[operacao]"
+                                class="col-menu-item__hint"
+                            >
+                                {{ dicas_operacoes[operacao] }}
+                            </span>
+                        </span>
                     </button>
                 </template>
             </div>

@@ -33,21 +33,33 @@ createApp({
             menu_posicao: { top: 0, left: 0 },
             operacoes_colunas: {
                 "Coluna": ["renomear"],
-                "Telefone": ["telefone_padrao_meta", "limpa_telefone", "adiciona_parenteses"],
                 "Nome": ["primeiro_nome", "nome_e_sobrenome"],
                 "CPF": ["cpf_com_ponto", "cpf_sem_ponto"],
+                "Telefone": ["telefone_padrao_meta", "limpa_telefone", "adiciona_parenteses"]
             },
 
-            // Rótulos usados no histórico de alterações
+            // Nomes exibidos no menu da coluna (também usados no histórico)
             rotulos_operacoes: {
                 "renomear": "Renomear coluna",
-                "telefone_padrao_meta": "Telefone padrão Meta",
-                "limpa_telefone": "Limpar telefone",
-                "adiciona_parenteses": "Adicionar parênteses",
-                "primeiro_nome": "Manter primeiro nome",
-                "nome_e_sobrenome": "Manter nome e sobrenome",
-                "cpf_com_ponto": "CPF com ponto",
-                "cpf_sem_ponto": "CPF sem ponto"
+                "primeiro_nome": "Só o primeiro nome",
+                "nome_e_sobrenome": "Nome e sobrenome",
+                "cpf_com_ponto": "CPF com pontos",
+                "cpf_sem_ponto": "CPF só com números",
+                "telefone_padrao_meta": "Telefone com 55 no início",
+                "limpa_telefone": "Telefone só com DDD e número",
+                "adiciona_parenteses": "Telefone com parênteses"
+            },
+
+            // Texto de apoio mostrado embaixo do nome no menu da coluna
+            dicas_operacoes: {
+                "renomear": "Troca o nome do cabeçalho",
+                "primeiro_nome": "\"Ana Souza Lima\" vira \"Ana\"",
+                "nome_e_sobrenome": "\"Ana Souza Lima\" vira \"Ana Souza\"",
+                "cpf_com_ponto": "000.000.000-00",
+                "cpf_sem_ponto": "Remove pontos e traço",
+                "telefone_padrao_meta": "Formato Meta/WhatsApp: 55 + DDD + número",
+                "limpa_telefone": "Remove 55, símbolos e o 9 extra",
+                "adiciona_parenteses": "(11) 99999-9999"
             },
 
             // Pilha de estados anteriores para desfazer as alterações
@@ -269,14 +281,62 @@ createApp({
             this.carregar_aba(this.aba_selecionada);
         },
         
+        // Abre o menu abaixo do botão garantindo que ele caiba na janela
         abrir_menu_coluna(coluna, event) {
+            const margem = 8;
+            const largura_max = 320;
             const rect = event.currentTarget.getBoundingClientRect();
+
+            const left_minimo = window.scrollX + margem;
+            const left_maximo = window.scrollX + window.innerWidth - margem - largura_max;
 
             this.menu_coluna_aberto = coluna;
             this.menu_posicao = {
-                top: rect.bottom + window.scrollY,
-                left: rect.left + window.scrollX
+                top: rect.bottom + window.scrollY + 6,
+                left: Math.max(left_minimo, Math.min(rect.left + window.scrollX, left_maximo))
             };
+
+            // Reajusta com as medidas reais depois da renderização e de novo
+            // no próximo quadro, já com o reflow das fontes aplicado
+            const ajustar = () => this.ajustar_menu_coluna(rect, margem);
+
+            this.$nextTick(ajustar);
+            requestAnimationFrame(ajustar);
+        },
+
+        ajustar_menu_coluna(rect, margem) {
+            const menu = this.$refs.menu_coluna;
+            if (!menu) return;
+
+            const caixa = menu.getBoundingClientRect();
+            const janela_largura = window.innerWidth;
+            const janela_altura = window.innerHeight;
+
+            let left = this.menu_posicao.left;
+            let top = this.menu_posicao.top;
+
+            // Não deixa vazar pela direita nem pela esquerda
+            const excesso_direita = caixa.right - (janela_largura - margem);
+            if (excesso_direita > 0) left -= excesso_direita;
+
+            const excesso_esquerda = margem - caixa.left;
+            if (excesso_esquerda > 0) left += excesso_esquerda;
+
+            // Prefere abrir embaixo; se não couber, abre para cima do botão
+            const espaco_embaixo = janela_altura - margem - rect.bottom - 6;
+            const espaco_acima = rect.top - margem - 6;
+
+            if (caixa.height > espaco_embaixo && caixa.height <= espaco_acima) {
+                top = rect.top + window.scrollY - caixa.height - 6;
+            }
+
+            // Nunca deixa o menu passar das bordas da janela
+            const top_maximo = window.scrollY + Math.max(margem, janela_altura - 2 * margem - caixa.height);
+            top = Math.max(window.scrollY + margem, Math.min(top, top_maximo));
+
+            if (left !== this.menu_posicao.left || top !== this.menu_posicao.top) {
+                this.menu_posicao = { top, left };
+            }
         },
 
         fechar_menu_coluna() {

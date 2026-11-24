@@ -4,84 +4,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Normalizador de Tabelas</title>
-    
+    <title>FRANK · Normalizador de Tabelas</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-        .preview-wrapper {
-            overflow-x: auto;
-            overflow-y: auto;
-            max-width: 100%;
-            max-height: 400px;
-        }
-
-        .preview-wrapper table {
-            min-width: max-content;
-        }
-
-        .preview-wrapper th,
-        .preview-wrapper td {
-            white-space: nowrap;
-        }
-    </style>
+    <link rel="stylesheet" href="/css/tabela.css">
 </head>
 
-<body class="bg-light">
+<body class="app-body">
 
-    <div
-        id="app"
-        class="container min-vh-100 d-flex align-items-center justify-content-center"
-    >
+    <header class="app-header">
+        <div class="app-header__inner">
+            <div class="brand">
+                <span class="brand__mark">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                </span>
 
-        <div
-            class="card shadow-sm border-0"
-            style="max-width: 900px; width: 100%;"
-        >
+                <span class="brand__text">
+                    <span class="brand__name">FRANK</span>
+                    <span class="brand__tag">Normalizador de Tabelas</span>
+                </span>
+            </div>
 
-            <div class="card-body p-5 text-center">
+            <span class="header-pill">
+                <i class="bi bi-shield-lock"></i>
+                Processamento local, sem envio de arquivos
+            </span>
+        </div>
+    </header>
 
-                <h1 class="h3 mb-2">
-                    Padronizar tabela
-                </h1>
+    <main id="app" class="app-main">
 
-                <p class="text-muted mb-4">
-                    Envie sua planilha para começar a padronização.
-                </p>
+        <section class="page-head">
+            <p class="eyebrow">Padronização de dados</p>
 
-                <!-- Área de Upload -->
+            <h1 class="page-title">
+                Padronize sua planilha em poucos cliques
+            </h1>
+
+            <p class="page-sub">
+                Envie um arquivo XLS, XLSX ou CSV e ajuste nomes, CPFs e telefones
+                direto na prévia dos dados.
+            </p>
+        </section>
+
+        <div class="workspace-grid">
+
+            <!-- Área de upload -->
+            <section class="panel upload-panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">
+                        <span class="panel__step">1</span>
+                        Envie sua planilha
+                    </h2>
+                </div>
+
                 <div
                     id="drop-area"
-                    class="border border-2 border-secondary rounded-3 p-5"
-                    style="border-style: dashed !important; cursor: pointer;"
+                    class="dropzone"
+                    :class="{ 'dropzone--compact': arquivo_selecionado }"
                 >
-
-                    <div class="mb-3">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="48"
-                            height="48"
-                            fill="currentColor"
-                            class="text-secondary"
-                            viewBox="0 0 16 16"
-                        >
-                            <path
-                                d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"
-                            />
-                            <path
-                                d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V10.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"
-                            />
-                        </svg>
+                    <div class="dropzone__icon">
+                        <i class="bi bi-cloud-arrow-up"></i>
                     </div>
 
-                    <h2 class="h5">
-                        Arraste sua planilha aqui
-                    </h2>
+                    <div class="dropzone__text">
+                        <p class="dropzone__title">
+                            {{ arquivo_selecionado ? 'Escolher outro arquivo' : 'Arraste sua planilha aqui' }}
+                        </p>
 
-                    <p class="text-muted mb-3">
-                        ou clique para selecionar um arquivo
-                    </p>
+                        <p class="dropzone__hint">
+                            {{ arquivo_selecionado
+                                ? 'arraste outro arquivo ou use o botão ao lado'
+                                : 'ou clique para selecionar um arquivo' }}
+                        </p>
+                    </div>
 
                     <input
                         type="file"
@@ -91,138 +92,211 @@
                         @change="selecionar_arquivo"
                     >
 
-                    <label
-                        for="file-input"
-                        class="btn btn-outline-primary px-4"
-                    >
+                    <label for="file-input" class="btn-brand">
+                        <i class="bi bi-folder2-open"></i>
                         Selecionar arquivo
                     </label>
 
-                    <p class="small text-muted mt-3 mb-0">
-                        Formatos aceitos: XLS, XLSX e CSV
+                    <p class="dropzone__formats">
+                        XLS · XLSX · CSV
                     </p>
-
                 </div>
 
                 <!-- Arquivo selecionado -->
-                <div
-                    v-if="arquivo_selecionado"
-                    class="mt-4"
-                >
-                    <div
-                        class="alert alert-secondary d-flex align-items-center justify-content-between mb-0"
-                    >
-                        <div class="text-start">
-                            <strong>
-                                {{ arquivo_selecionado.name }}
-                            </strong>
-                            <br>
-                            <small class="text-muted">
-                                {{ formatar_tamanho(arquivo_selecionado.size) }}
-                            </small>
-                        </div>
+                <div v-if="arquivo_selecionado" class="file-chip">
+                    <span class="file-chip__icon">
+                        <i class="bi bi-file-earmark-spreadsheet"></i>
+                    </span>
 
+                    <div class="file-chip__info">
+                        <span class="file-chip__name" :title="arquivo_selecionado.name">
+                            {{ arquivo_selecionado.name }}
+                        </span>
+
+                        <span class="file-chip__size">
+                            {{ formatar_tamanho(arquivo_selecionado.size) }}
+                        </span>
+                    </div>
+
+                    <div class="file-chip__action">
                         <button
                             type="button"
-                            class="btn btn-outline-danger btn-sm"
+                            class="btn-ghost"
                             @click="remover_arquivo"
                         >
-                            <i class="bi bi-trash"></i>    
+                            <i class="bi bi-trash3"></i>
                             Remover
                         </button>
                     </div>
                 </div>
 
-                <!-- Prévia da tabela -->
-                <div
-                    v-if="dados_tabela.length > 0"
-                    class="mt-4 text-start"
-                >
-                    <div class="card border">
+            </section>
 
-                        <div class="card-header bg-white fw-semibold">
-                            Prévia da tabela
-                        </div>
-
-                        <div class="card-body p-0">
-
-                            <div class="preview-wrapper">
-
-                                <table class="table table-striped table-hover table-sm mb-0">
-
-                                    <thead>
-                                        <tr>
-                                            <th
-                                                v-for="coluna in colunas_tabela"
-                                                :key="coluna"
-                                            >
-                                                <div class="d-flex align-items-center justify-content-between gap-2">
-                                                    <span>{{ coluna }}</span>
-                                                    
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-sm btn-light btn-menu-coluna"
-                                                        @click.stop="apagar_coluna(coluna)"
-                                                    >
-                                                        <i class="bi bi-trash text-danger"></i>
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-sm btn-light btn-menu-coluna"
-                                                        @click.stop="abrir_menu_coluna(coluna, $event)"
-                                                    >
-                                                        <i class="bi bi-gear"></i>
-                                                    </button>
-
-                                                </div>
-                                            </th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr
-                                            v-for="(linha, index) in dados_tabela"
-                                            :key="index"
-                                        >
-                                            <td
-                                                v-for="coluna in colunas_tabela"
-                                                :key="coluna"
-                                            >
-                                                {{ linha[coluna] }}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-
-                                </table>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    <small class="text-muted">
-                        Exibindo as primeiras {{ dados_tabela.length }} linhas.
-                    </small>
-                    
-                    <div class="mt-4 text-start">
-                        <button @click="baixar_tabela_padronizada" class="btn btn-outline-success">
-                            <i class="bi bi-download"></i> Baixar Tabela Padronizada
-                        </button>
-                    </div>
-                    
+            <!-- Guia -->
+            <aside class="panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">
+                        <span class="panel__step">
+                            <i class="bi bi-signpost-split"></i>
+                        </span>
+                        Como funciona
+                    </h2>
                 </div>
 
-            </div>
+                <ol class="steps">
+                    <li class="step">
+                        <span class="step__num">1</span>
+
+                        <div class="step__body">
+                            <strong>Importe o arquivo</strong>
+                            <span>
+                                Arraste a planilha ou use o botão. A primeira aba
+                                do arquivo é carregada automaticamente.
+                            </span>
+                        </div>
+                    </li>
+
+                    <li class="step">
+                        <span class="step__num">2</span>
+
+                        <div class="step__body">
+                            <strong>Trate as colunas</strong>
+                            <span>
+                                No cabeçalho da tabela, use a engrenagem para
+                                renomear, limpar CPF ou padronizar telefones.
+                            </span>
+                        </div>
+                    </li>
+
+                    <li class="step">
+                        <span class="step__num">3</span>
+
+                        <div class="step__body">
+                            <strong>Baixe o resultado</strong>
+                            <span>
+                                Exporte a versão padronizada em CSV, pronta
+                                para importar no seu sistema.
+                            </span>
+                        </div>
+                    </li>
+                </ol>
+
+                <div class="note">
+                    <i class="bi bi-info-circle"></i>
+                    <span>
+                        A prévia exibe as 10 primeiras linhas, mas as operações
+                        são aplicadas em todas as linhas da planilha.
+                    </span>
+                </div>
+            </aside>
 
         </div>
 
-        <!-- Menu fora da tabela -->
+        <!-- Prévia da tabela -->
+        <section v-if="dados_tabela.length > 0" class="panel preview-panel">
+
+            <header class="preview-panel__head">
+                <h2 class="preview-panel__title">
+                    <i class="bi bi-table"></i>
+                    Prévia da tabela
+                </h2>
+
+                <div class="stat-row">
+                    <span class="stat">
+                        <i class="bi bi-columns-gap"></i>
+                        {{ colunas_tabela.length }} colunas
+                    </span>
+
+                    <span class="stat stat--muted">
+                        <i class="bi bi-list-ol"></i>
+                        {{ dados_tabela.length }} linhas na prévia
+                    </span>
+                </div>
+            </header>
+
+            <div class="preview-panel__body">
+                <div class="preview-wrapper">
+
+                    <table class="data-table">
+
+                        <thead>
+                            <tr>
+                                <th
+                                    v-for="coluna in colunas_tabela"
+                                    :key="coluna"
+                                >
+                                    <div class="col-head">
+                                        <span class="col-head__name" :title="coluna">
+                                            {{ coluna }}
+                                        </span>
+
+                                        <span class="col-head__actions">
+                                            <button
+                                                type="button"
+                                                class="icon-btn icon-btn--danger btn-menu-coluna"
+                                                title="Apagar coluna"
+                                                @click.stop="apagar_coluna(coluna)"
+                                            >
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="icon-btn btn-menu-coluna"
+                                                title="Operações da coluna"
+                                                @click.stop="abrir_menu_coluna(coluna, $event)"
+                                            >
+                                                <i class="bi bi-sliders2"></i>
+                                            </button>
+                                        </span>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr
+                                v-for="(linha, index) in dados_tabela"
+                                :key="index"
+                            >
+                                <td
+                                    v-for="coluna in colunas_tabela"
+                                    :key="coluna"
+                                    :title="linha[coluna]"
+                                >
+                                    {{ linha[coluna] }}
+                                </td>
+                            </tr>
+                        </tbody>
+
+                    </table>
+
+                </div>
+            </div>
+
+            <footer class="preview-panel__foot">
+                <p class="preview-panel__hint">
+                    <i class="bi bi-info-circle"></i>
+                    Exibindo as primeiras {{ dados_tabela.length }} linhas.
+                </p>
+
+                <button
+                    type="button"
+                    class="btn-brand btn-brand--success"
+                    @click="baixar_tabela_padronizada"
+                >
+                    <i class="bi bi-download"></i>
+                    Baixar tabela padronizada
+                </button>
+            </footer>
+
+        </section>
+
+        <!-- Menu de operações da coluna (fora da tabela) -->
         <teleport to="body">
             <div
                 v-if="menu_coluna_aberto"
-                class="dropdown-menu show"
+                class="dropdown-menu show column-menu"
                 :style="{
                     position: 'absolute',
                     top: menu_posicao.top + 'px',
@@ -230,6 +304,11 @@
                     zIndex: 9999
                 }"
             >
+                <div class="column-menu__title">
+                    <i class="bi bi-sliders2"></i>
+                    {{ menu_coluna_aberto }}
+                </div>
+
                 <template v-for="(operacoes, tipo) in operacoes_colunas" :key="tipo">
                     <h6 class="dropdown-header">{{ tipo }}</h6>
 
@@ -246,7 +325,20 @@
             </div>
         </teleport>
 
-    </div>
+    </main>
+
+    <footer class="app-footer">
+        <div class="app-footer__inner">
+            <span>
+                <i class="bi bi-grid-1x2-fill"></i>
+                FRANK · Normalizador de Tabelas
+            </span>
+
+            <span>
+                Seus arquivos não saem deste navegador.
+            </span>
+        </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -257,3 +349,4 @@
 </body>
 
 </html>
+

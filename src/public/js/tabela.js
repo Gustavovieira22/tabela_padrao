@@ -36,7 +36,23 @@ createApp({
                 "Telefone": ["telefone_padrao_meta", "limpa_telefone", "adiciona_parenteses"],
                 "Nome": ["primeiro_nome", "nome_e_sobrenome"],
                 "CPF": ["cpf_com_ponto", "cpf_sem_ponto"],
-            }
+            },
+
+            // Rótulos usados no histórico de alterações
+            rotulos_operacoes: {
+                "renomear": "Renomear coluna",
+                "telefone_padrao_meta": "Telefone padrão Meta",
+                "limpa_telefone": "Limpar telefone",
+                "adiciona_parenteses": "Adicionar parênteses",
+                "primeiro_nome": "Manter primeiro nome",
+                "nome_e_sobrenome": "Manter nome e sobrenome",
+                "cpf_com_ponto": "CPF com ponto",
+                "cpf_sem_ponto": "CPF sem ponto"
+            },
+
+            // Pilha de estados anteriores para desfazer as alterações
+            historico: [],
+            limite_historico: 30
         };
     },
 
@@ -98,6 +114,16 @@ createApp({
             paginas.push(total);
 
             return paginas;
+        },
+
+        pode_desfazer() {
+            return this.historico.length > 0;
+        },
+
+        // Rótulo da alteração que o botão Desfazer vai reverter
+        ultima_alteracao() {
+            const ultima = this.historico[this.historico.length - 1];
+            return ultima ? ultima.rotulo : "";
         }
     },
 
@@ -140,6 +166,7 @@ createApp({
             this.colunas_tabela = [];
             this.dados_completos = [];
             this.pagina_atual = 1;
+            this.historico = [];
             this.fechar_menu_coluna();
             document.getElementById("file-input").value = "";
         },
@@ -184,6 +211,7 @@ createApp({
                 this.colunas_tabela = [];
                 this.dados_completos = [];
                 this.pagina_atual = 1;
+                this.historico = [];
             }
         },
 
@@ -197,6 +225,7 @@ createApp({
                 this.dados_completos = [];
                 this.colunas_tabela = [];
                 this.pagina_atual = 1;
+                this.historico = [];
                 this.fechar_menu_coluna();
                 return;
             }
@@ -231,6 +260,8 @@ createApp({
 
             // A paginação controla apenas a exibição
             this.pagina_atual = 1;
+            // O histórico pertence aos dados da aba carregada
+            this.historico = [];
             this.fechar_menu_coluna();
         },
 
@@ -253,107 +284,112 @@ createApp({
         },
 
         executar_operacao(coluna, operacao) {
-            if(operacao == "renomear"){
+            if (operacao === "renomear") {
                 this.renomear_coluna(coluna);
-            }
-            if (operacao === "primeiro_nome") {
-                this.aplicar_primeiro_nome(coluna);
-            }
-
-            if (operacao === "nome_e_sobrenome") {
-                this.aplicar_primeiro_e_segundo_nome(coluna);
+                this.fechar_menu_coluna();
+                return;
             }
 
-            if (operacao === "cpf_sem_ponto") {
-                this.aplicar_cpf_sem_ponto(coluna);
-            }
+            const transformacoes = {
+                primeiro_nome: pegar_primeiro_nome,
+                nome_e_sobrenome: pegar_primeiro_e_segundo_nome,
+                cpf_sem_ponto: limpar_cpf,
+                cpf_com_ponto: formatar_cpf,
+                limpa_telefone: limpar_telefone,
+                telefone_padrao_meta: formatar_telefone_padrao_meta,
+                adiciona_parenteses: adicionar_parenteses
+            };
 
-            if (operacao === "cpf_com_ponto") {
-                this.aplicar_cpf_com_ponto(coluna);
-            }
+            const transformacao = transformacoes[operacao];
 
-            if (operacao === "limpa_telefone") {
-                this.aplicar_limpa_telefone(coluna);
-            }
-
-            if (operacao === "telefone_padrao_meta") {
-                this.aplicar_telefone_padrao_meta(coluna);
-            }
-            
-            if (operacao === "adiciona_parenteses") {
-                this.aplicar_adiciona_parenteses(coluna);
+            if (transformacao) {
+                const rotulo = `${this.rotulos_operacoes[operacao] || operacao} · ${coluna}`;
+                this.aplicar_na_coluna(coluna, transformacao, rotulo);
             }
 
             this.fechar_menu_coluna();
         },
 
-        aplicar_primeiro_nome(coluna) {
-            this.dados_completos = this.dados_completos.map(linha => {
-                return {
-                    ...linha,
-                    [coluna]: pegar_primeiro_nome(linha[coluna])
-                };
+        // Aplica uma transformação em toda a coluna e registra o estado anterior.
+        // Não gera histórico quando nenhum valor é alterado.
+        aplicar_na_coluna(coluna, transformacao, rotulo) {
+            let alterou = false;
+
+            const novos_dados = this.dados_completos.map(linha => {
+                const valor_atual = linha[coluna];
+                const novo_valor = transformacao(valor_atual);
+
+                if (novo_valor !== valor_atual) alterou = true;
+
+                return { ...linha, [coluna]: novo_valor };
             });
+
+            if (!alterou) return false;
+
+            this.registrar_alteracao(rotulo);
+            this.dados_completos = novos_dados;
+
+            return true;
         },
 
-        aplicar_primeiro_e_segundo_nome(coluna) {
-            this.dados_completos = this.dados_completos.map(linha => {
-                return {
-                    ...linha,
-                    [coluna]: pegar_primeiro_e_segundo_nome(linha[coluna])
-                };
+        // Guarda o estado anterior na pilha de desfazer.
+        // As operações sempre criam novos arrays/linhas (nunca alteram no lugar),
+        // então basta manter as referências — sem clonar os dados.
+        registrar_alteracao(rotulo) {
+            this.historico.push({
+                dados: this.dados_completos,
+                colunas: this.colunas_tabela,
+                rotulo
             });
+
+            if (this.historico.length > this.limite_historico) {
+                this.historico.shift();
+            }
+        },
+
+        desfazer_alteracao() {
+            const estado_anterior = this.historico.pop();
+            if (!estado_anterior) return;
+
+            this.dados_completos = estado_anterior.dados;
+            this.colunas_tabela = estado_anterior.colunas;
+
+            this.fechar_menu_coluna();
+
+            if (this.pagina_atual > this.total_paginas) {
+                this.pagina_atual = this.total_paginas;
+            }
+        },
+
+        // Ctrl+Z / Cmd+Z desfaz a última alteração (fora de campos de digitação)
+        atalho_desfazer(event) {
+            const tecla_z = String(event.key).toLowerCase() === "z";
+
+            if (!tecla_z || !(event.ctrlKey || event.metaKey) || event.shiftKey) return;
+
+            const alvo = event.target;
+            const campo_de_texto = alvo && (
+                alvo.tagName === "INPUT"
+                || alvo.tagName === "TEXTAREA"
+                || alvo.tagName === "SELECT"
+                || alvo.isContentEditable
+            );
+
+            if (campo_de_texto || !this.pode_desfazer) return;
+
+            event.preventDefault();
+            this.desfazer_alteracao();
         },
 
         apagar_coluna(coluna) {
+            this.registrar_alteracao(`Apagar coluna · ${coluna}`);
+
             this.colunas_tabela = this.colunas_tabela.filter(c => c !== coluna);
 
             this.dados_completos = this.dados_completos.map(linha => {
                 const nova_linha = { ...linha };
                 delete nova_linha[coluna];
                 return nova_linha;
-            });
-        },
-
-        aplicar_cpf_sem_ponto(coluna) {
-            this.dados_completos = this.dados_completos.map(linha => {
-                return {
-                    ...linha,
-                    [coluna]: limpar_cpf(linha[coluna])
-                };
-            });
-        },
-
-        aplicar_cpf_com_ponto(coluna) {
-            this.dados_completos = this.dados_completos.map(linha => {
-                return {
-                    ...linha,
-                    [coluna]: formatar_cpf(linha[coluna])
-                };
-            });
-        },
-        aplicar_limpa_telefone(coluna) {
-            this.dados_completos = this.dados_completos.map(linha => {
-                return {
-                    ...linha,
-                    [coluna]: limpar_telefone(linha[coluna])
-                };
-            });
-        },
-        aplicar_telefone_padrao_meta(coluna) {
-            this.dados_completos = this.dados_completos.map(linha => {
-                return {
-                    ...linha,
-                    [coluna]: formatar_telefone_padrao_meta(linha[coluna])
-                };
-            });
-        },
-        aplicar_adiciona_parenteses(coluna) {
-            this.dados_completos = this.dados_completos.map(linha => {
-                return {
-                    ...linha,
-                    [coluna]: adicionar_parenteses(linha[coluna])
-                };
             });
         },
 
@@ -422,6 +458,9 @@ createApp({
                 return;
             }
 
+            // Permite desfazer a renomeação
+            this.registrar_alteracao(`Renomear coluna · ${coluna_antiga} → ${novo_nome}`);
+
             // 1. Atualiza o array de colunas da tabela
             this.colunas_tabela = this.colunas_tabela.map(col => col === coluna_antiga ? novo_nome : col);
 
@@ -463,6 +502,7 @@ createApp({
 
     mounted() {
         document.addEventListener("click", this.handle_clique_fora);
+        document.addEventListener("keydown", this.atalho_desfazer);
         // Adiciona os eventos de Drag and Drop
         const dropArea = document.getElementById("drop-area");
         if (dropArea) {
@@ -473,6 +513,7 @@ createApp({
 
     beforeUnmount() {
         document.removeEventListener("click", this.handle_clique_fora);
+        document.removeEventListener("keydown", this.atalho_desfazer);
 
         // Remove os eventos para evitar vazamento de memória
         const dropArea = document.getElementById("drop-area");

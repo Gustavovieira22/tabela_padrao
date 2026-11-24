@@ -221,6 +221,14 @@
                         em todas as linhas da aba selecionada.
                     </span>
                 </div>
+
+                <div class="note">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    <span>
+                        Errou um ajuste? Use Desfazer (ou Ctrl+Z) para voltar
+                        ao estado anterior, um passo por vez.
+                    </span>
+                </div>
             </aside>
 
         </div>
@@ -234,25 +242,43 @@
                     Prévia da tabela
                 </h2>
 
-                <div class="stat-row">
-                    <span
-                        v-if="abas_disponiveis.length > 1"
-                        class="stat"
-                        :title="'Aba: ' + aba_selecionada"
+                <div class="preview-tools">
+                    <div class="stat-row">
+                        <span
+                            v-if="abas_disponiveis.length > 1"
+                            class="stat"
+                            :title="'Aba: ' + aba_selecionada"
+                        >
+                            <i class="bi bi-layers"></i>
+                            <span class="stat__text">{{ aba_selecionada }}</span>
+                        </span>
+
+                        <span class="stat">
+                            <i class="bi bi-columns-gap"></i>
+                            {{ colunas_tabela.length }} colunas
+                        </span>
+
+                        <span class="stat stat--muted">
+                            <i class="bi bi-list-ol"></i>
+                            {{ total_linhas }} linhas
+                        </span>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn-ghost btn-undo"
+                        :disabled="!pode_desfazer"
+                        :title="pode_desfazer
+                            ? 'Desfazer: ' + ultima_alteracao + ' (Ctrl+Z)'
+                            : 'Nenhuma alteração para desfazer'"
+                        @click="desfazer_alteracao"
                     >
-                        <i class="bi bi-layers"></i>
-                        <span class="stat__text">{{ aba_selecionada }}</span>
-                    </span>
-
-                    <span class="stat">
-                        <i class="bi bi-columns-gap"></i>
-                        {{ colunas_tabela.length }} colunas
-                    </span>
-
-                    <span class="stat stat--muted">
-                        <i class="bi bi-list-ol"></i>
-                        {{ total_linhas }} linhas
-                    </span>
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        Desfazer
+                        <span v-if="historico.length > 1" class="btn-undo__count">
+                            {{ historico.length }}
+                        </span>
+                    </button>
                 </div>
             </header>
 

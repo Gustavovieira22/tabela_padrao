@@ -10,8 +10,11 @@ createApp({
             arquivo_selecionado: null,
 
             dados_completos: [],
-            dados_tabela: [],
             colunas_tabela: [],
+
+            pagina_atual: 1,
+            linhas_por_pagina: 10,
+            opcoes_linhas_por_pagina: [10, 25, 50, 100, 0],
 
             menu_coluna_aberto: null,
             menu_posicao: { top: 0, left: 0 },
@@ -25,7 +28,76 @@ createApp({
     },
 
     computed: {
+        total_linhas() {
+            return this.dados_completos.length;
+        },
 
+        // 0 em "linhas_por_pagina" significa "Todas"
+        tamanho_pagina() {
+            if (this.linhas_por_pagina > 0) return this.linhas_por_pagina;
+            return Math.max(this.total_linhas, 1);
+        },
+
+        total_paginas() {
+            return Math.max(1, Math.ceil(this.total_linhas / this.tamanho_pagina));
+        },
+
+        dados_tabela() {
+            const inicio = (this.pagina_atual - 1) * this.tamanho_pagina;
+            return this.dados_completos.slice(inicio, inicio + this.tamanho_pagina);
+        },
+
+        inicio_exibicao() {
+            if (this.total_linhas === 0) return 0;
+            return (this.pagina_atual - 1) * this.tamanho_pagina + 1;
+        },
+
+        fim_exibicao() {
+            return Math.min(this.pagina_atual * this.tamanho_pagina, this.total_linhas);
+        },
+
+        // Lista de páginas com reticências quando houver muitas páginas
+        paginas_visiveis() {
+            const total = this.total_paginas;
+            const atual = this.pagina_atual;
+
+            if (total <= 9) {
+                return Array.from({ length: total }, (_, indice) => indice + 1);
+            }
+
+            const janela = 2;
+            let inicio = Math.max(2, atual - janela);
+            let fim = Math.min(total - 1, atual + janela);
+
+            if (atual <= 3) fim = Math.min(total - 1, 5);
+            if (atual >= total - 2) inicio = Math.max(2, total - 4);
+
+            const paginas = [1];
+
+            if (inicio > 2) paginas.push("...");
+
+            for (let pagina = inicio; pagina <= fim; pagina++) {
+                paginas.push(pagina);
+            }
+
+            if (fim < total - 1) paginas.push("...");
+
+            paginas.push(total);
+
+            return paginas;
+        }
+    },
+
+    watch: {
+        linhas_por_pagina() {
+            this.pagina_atual = 1;
+        },
+
+        total_paginas() {
+            if (this.pagina_atual > this.total_paginas) {
+                this.pagina_atual = this.total_paginas;
+            }
+        }
     },
 
     methods: {
@@ -50,7 +122,8 @@ createApp({
         remover_arquivo() {
             this.arquivo_selecionado = null;
             this.colunas_tabela = [];
-            this.dados_tabela = [];
+            this.dados_completos = [];
+            this.pagina_atual = 1;
             document.getElementById("file-input").value = "";
         },
         
@@ -93,15 +166,13 @@ createApp({
                     return nova_linha;
                 });
 
-                // Usa os dados já formatados na prévia
-                this.dados_tabela = this.dados_completos
-                    .slice(0, 10)
-                    .map(linha => ({ ...linha }));
+                // Usa todos os dados formatados; a paginação controla a exibição
+                this.pagina_atual = 1;
 
-                if (this.dados_tabela.length > 0) {
+                if (this.dados_completos.length > 0) {
 
                     this.colunas_tabela = Object.keys(
-                        this.dados_tabela[0]
+                        this.dados_completos[0]
                     );
 
                 }
@@ -112,7 +183,8 @@ createApp({
 
                 this.arquivo_selecionado = null;
                 this.colunas_tabela = [];
-                this.dados_tabela = [];
+                this.dados_completos = [];
+                this.pagina_atual = 1;
             }
         },
         
@@ -162,7 +234,6 @@ createApp({
                 this.aplicar_adiciona_parenteses(coluna);
             }
 
-            this.dados_tabela = this.dados_completos.slice(0, 10);
             this.fechar_menu_coluna();
         },
 
@@ -307,9 +378,27 @@ createApp({
                 }
                 return nova_linha;
             });
+        },
 
-            // 3. Atualiza a prévia da tabela
-            this.dados_tabela = this.dados_completos.slice(0, 10);
+        ir_para_pagina(pagina) {
+            const destino = Math.min(Math.max(1, Number(pagina)), this.total_paginas);
+
+            if (Number.isNaN(destino) || destino === this.pagina_atual) return;
+
+            this.pagina_atual = destino;
+
+            this.$nextTick(() => {
+                const wrapper = document.querySelector(".preview-wrapper");
+                if (wrapper) wrapper.scrollTop = 0;
+            });
+        },
+
+        pagina_anterior() {
+            this.ir_para_pagina(this.pagina_atual - 1);
+        },
+
+        proxima_pagina() {
+            this.ir_para_pagina(this.pagina_atual + 1);
         }
     },
 

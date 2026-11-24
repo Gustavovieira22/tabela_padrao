@@ -184,8 +184,8 @@
                 <div class="note">
                     <i class="bi bi-info-circle"></i>
                     <span>
-                        A prévia exibe as 10 primeiras linhas, mas as operações
-                        são aplicadas em todas as linhas da planilha.
+                        A prévia é paginada, mas as operações são aplicadas
+                        em todas as linhas da planilha.
                     </span>
                 </div>
             </aside>
@@ -209,7 +209,7 @@
 
                     <span class="stat stat--muted">
                         <i class="bi bi-list-ol"></i>
-                        {{ dados_tabela.length }} linhas na prévia
+                        {{ total_linhas }} linhas
                     </span>
                 </div>
             </header>
@@ -275,10 +275,77 @@
             </div>
 
             <footer class="preview-panel__foot">
-                <p class="preview-panel__hint">
-                    <i class="bi bi-info-circle"></i>
-                    Exibindo as primeiras {{ dados_tabela.length }} linhas.
-                </p>
+                <div class="pagination">
+                    <p class="pagination__info">
+                        <i class="bi bi-info-circle"></i>
+                        Exibindo
+                        <strong>{{ inicio_exibicao }}–{{ fim_exibicao }}</strong>
+                        de
+                        <strong>{{ total_linhas }}</strong>
+                        linhas
+                    </p>
+
+                    <div class="pagination__tools">
+                        <label class="pagination__size">
+                            Linhas por página
+                            <select v-model.number="linhas_por_pagina">
+                                <option
+                                    v-for="opcao in opcoes_linhas_por_pagina"
+                                    :key="opcao"
+                                    :value="opcao"
+                                >
+                                    {{ opcao === 0 ? 'Todas' : opcao }}
+                                </option>
+                            </select>
+                        </label>
+
+                        <nav
+                            v-if="total_paginas > 1"
+                            class="pagination__nav"
+                            aria-label="Paginação da tabela"
+                        >
+                            <button
+                                type="button"
+                                class="pagination__btn"
+                                :disabled="pagina_atual === 1"
+                                title="Página anterior"
+                                @click="pagina_anterior"
+                            >
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+
+                            <template v-for="(pagina, indice) in paginas_visiveis" :key="indice">
+                                <span
+                                    v-if="pagina === '...'"
+                                    class="pagination__ellipsis"
+                                >
+                                    …
+                                </span>
+
+                                <button
+                                    v-else
+                                    type="button"
+                                    class="pagination__btn"
+                                    :class="{ 'pagination__btn--active': pagina === pagina_atual }"
+                                    :title="'Página ' + pagina"
+                                    @click="ir_para_pagina(pagina)"
+                                >
+                                    {{ pagina }}
+                                </button>
+                            </template>
+
+                            <button
+                                type="button"
+                                class="pagination__btn"
+                                :disabled="pagina_atual === total_paginas"
+                                title="Próxima página"
+                                @click="proxima_pagina"
+                            >
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </nav>
+                    </div>
+                </div>
 
                 <button
                     type="button"

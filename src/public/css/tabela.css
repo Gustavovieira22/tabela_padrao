@@ -685,7 +685,8 @@ body.app-body {
     white-space: nowrap;
 }
 
-.pagination__size select {
+.pagination__size select,
+.download-box__format select {
     width: auto;
     padding: 4px 26px 4px 9px;
     border: 1px solid var(--line-strong);
@@ -700,7 +701,8 @@ body.app-body {
     cursor: pointer;
 }
 
-.pagination__size select:focus-visible {
+.pagination__size select:focus-visible,
+.download-box__format select:focus-visible {
     outline: 2px solid var(--brand-600);
     outline-offset: 1px;
 }
@@ -764,6 +766,27 @@ body.app-body {
     color: var(--ink-400);
     font-size: 12.5px;
     font-weight: 600;
+}
+
+/* --------------------------------------------------------------------------
+   Download da tabela
+   -------------------------------------------------------------------------- */
+
+.download-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.download-box__format {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--ink-500);
+    white-space: nowrap;
 }
 
 /* --------------------------------------------------------------------------
@@ -1115,6 +1138,18 @@ body.app-body {
     .pagination__tools {
         width: 100%;
         margin-left: 0;
+    }
+
+    .download-box {
+        width: 100%;
+    }
+
+    .download-box__format {
+        width: 100%;
+    }
+
+    .download-box .btn-brand {
+        flex: 1 1 auto;
     }
 
     .page-title {

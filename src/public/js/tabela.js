@@ -16,6 +16,14 @@ createApp({
             linhas_por_pagina: 10,
             opcoes_linhas_por_pagina: [10, 25, 50, 100, 0],
 
+            formato_download: "csv",
+            formatos_download: [
+                { valor: "csv", rotulo: "CSV (.csv)" },
+                { valor: "xlsx", rotulo: "Excel (.xlsx)" },
+                { valor: "xls", rotulo: "Excel 97-2003 (.xls)" },
+                { valor: "ods", rotulo: "LibreOffice (.ods)" }
+            ],
+
             menu_coluna_aberto: null,
             menu_posicao: { top: 0, left: 0 },
             operacoes_colunas: {
@@ -328,12 +336,16 @@ createApp({
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Dados Padronizados");
 
-                // Dispara o download do arquivo .xlsx
-                //XLSX.writeFile(workbook, "tabela_padronizada.xlsx");
-                XLSX.writeFile(workbook, "tabela_padronizada.csv", { 
-                    bookType: "csv", 
-                    FS: ";" // Define o separador de colunas explicitamente como ponto e vírgula
-                });
+                // Formato escolhido pelo usuário (CSV é o padrão)
+                const formato = this.formato_download || "csv";
+                const opcoes_escrita = { bookType: formato };
+
+                if (formato === "csv") {
+                    // Define o separador de colunas explicitamente como ponto e vírgula
+                    opcoes_escrita.FS = ";";
+                }
+
+                XLSX.writeFile(workbook, `tabela_padronizada.${formato}`, opcoes_escrita);
             } catch (erro) {
                 console.error("Erro ao gerar e baixar a planilha:", erro);
             }

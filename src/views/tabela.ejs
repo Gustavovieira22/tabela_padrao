@@ -174,8 +174,9 @@
                         <div class="step__body">
                             <strong>Baixe o resultado</strong>
                             <span>
-                                Exporte a versão padronizada em CSV, pronta
-                                para importar no seu sistema.
+                                Escolha o formato (CSV, XLSX, XLS ou ODS) e
+                                exporte a versão padronizada, pronta para
+                                importar no seu sistema.
                             </span>
                         </div>
                     </li>
@@ -347,14 +348,29 @@
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    class="btn-brand btn-brand--success"
-                    @click="baixar_tabela_padronizada"
-                >
-                    <i class="bi bi-download"></i>
-                    Baixar tabela padronizada
-                </button>
+                <div class="download-box">
+                    <label class="download-box__format">
+                        Formato
+                        <select v-model="formato_download">
+                            <option
+                                v-for="formato in formatos_download"
+                                :key="formato.valor"
+                                :value="formato.valor"
+                            >
+                                {{ formato.rotulo }}
+                            </option>
+                        </select>
+                    </label>
+
+                    <button
+                        type="button"
+                        class="btn-brand btn-brand--success"
+                        @click="baixar_tabela_padronizada"
+                    >
+                        <i class="bi bi-download"></i>
+                        Baixar tabela padronizada
+                    </button>
+                </div>
             </footer>
 
         </section>

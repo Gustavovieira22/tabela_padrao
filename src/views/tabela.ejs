@@ -294,7 +294,45 @@
                                     :key="coluna"
                                 >
                                     <div class="col-head">
-                                        <span class="col-head__name" :title="coluna">
+                                        <div
+                                            v-if="coluna_em_edicao === coluna"
+                                            class="col-head__edit"
+                                        >
+                                            <input
+                                                class="col-head__input"
+                                                :class="{ 'col-head__input--erro': erro_renomear }"
+                                                data-renomear-input
+                                                type="text"
+                                                autocomplete="off"
+                                                spellcheck="false"
+                                                :value="nome_em_edicao"
+                                                :aria-label="`Novo nome para a coluna ${coluna}`"
+                                                :aria-invalid="erro_renomear ? 'true' : 'false'"
+                                                @input="digitou_nome_coluna"
+                                                @keydown.enter.prevent="confirmar_renomear_coluna"
+                                                @keydown.escape.prevent="cancelar_renomear_coluna"
+                                                @blur="sair_do_campo_renomear"
+                                            >
+
+                                            <span
+                                                v-if="erro_renomear"
+                                                class="col-head__erro"
+                                                role="alert"
+                                            >
+                                                {{ erro_renomear }}
+                                            </span>
+
+                                            <span v-else class="col-head__dica">
+                                                Enter salva · Esc cancela
+                                            </span>
+                                        </div>
+
+                                        <span
+                                            v-else
+                                            class="col-head__name"
+                                            :title="`${coluna} — clique duas vezes para renomear`"
+                                            @dblclick.stop="iniciar_renomear_coluna(coluna)"
+                                        >
                                             {{ coluna }}
                                         </span>
 

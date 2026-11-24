@@ -31,6 +31,11 @@ createApp({
 
             menu_coluna_aberto: null,
             menu_posicao: { top: 0, left: 0 },
+
+            // Renomeação feita no próprio cabeçalho da coluna (sem prompt)
+            coluna_em_edicao: null,
+            nome_em_edicao: "",
+            erro_renomear: "",
             operacoes_colunas: {
                 "Coluna": ["renomear"],
                 "Nome": ["primeiro_nome", "nome_e_sobrenome"],
@@ -52,7 +57,7 @@ createApp({
 
             // Texto de apoio mostrado embaixo do nome no menu da coluna
             dicas_operacoes: {
-                "renomear": "Troca o nome do cabeçalho",
+                "renomear": "Edita o nome no próprio cabeçalho",
                 "primeiro_nome": "\"Ana Souza Lima\" vira \"Ana\"",
                 "nome_e_sobrenome": "\"Ana Souza Lima\" vira \"Ana Souza\"",
                 "cpf_com_ponto": "000.000.000-00",
@@ -180,6 +185,7 @@ createApp({
             this.pagina_atual = 1;
             this.historico = [];
             this.fechar_menu_coluna();
+            this.cancelar_renomear_coluna();
             document.getElementById("file-input").value = "";
         },
         
@@ -229,6 +235,8 @@ createApp({
 
         // Carrega os dados da aba escolhida a partir do workbook original
         carregar_aba(nome_aba) {
+            this.cancelar_renomear_coluna();
+
             const planilha = nome_aba && this.workbook
                 ? this.workbook.Sheets[nome_aba]
                 : null;
@@ -283,6 +291,8 @@ createApp({
         
         // Abre o menu abaixo do botão garantindo que ele caiba na janela
         abrir_menu_coluna(coluna, event) {
+            if (!this.colunas_tabela.includes(coluna)) return;
+
             const margem = 8;
             const largura_max = 320;
             const rect = event.currentTarget.getBoundingClientRect();
@@ -345,8 +355,7 @@ createApp({
 
         executar_operacao(coluna, operacao) {
             if (operacao === "renomear") {
-                this.renomear_coluna(coluna);
-                this.fechar_menu_coluna();
+                this.iniciar_renomear_coluna(coluna);
                 return;
             }
 
@@ -415,6 +424,7 @@ createApp({
             this.colunas_tabela = estado_anterior.colunas;
 
             this.fechar_menu_coluna();
+            this.cancelar_renomear_coluna();
 
             if (this.pagina_atual > this.total_paginas) {
                 this.pagina_atual = this.total_paginas;
@@ -442,6 +452,10 @@ createApp({
         },
 
         apagar_coluna(coluna) {
+            if (!this.colunas_tabela.includes(coluna)) return;
+
+            if (this.coluna_em_edicao === coluna) this.cancelar_renomear_coluna();
+
             this.registrar_alteracao(`Apagar coluna · ${coluna}`);
 
             this.colunas_tabela = this.colunas_tabela.filter(c => c !== coluna);
@@ -507,14 +521,67 @@ createApp({
             await this.ler_tabela(arquivo);
         },
 
-        renomear_coluna(coluna_antiga) {
-            const novo_nome = prompt(`Digite o novo nome para a coluna "${coluna_antiga}":`, coluna_antiga);
-            
-            if (!novo_nome || novo_nome.trim() === "" || novo_nome === coluna_antiga) return;
-            
-            // Verifica se a coluna já existe para evitar conflito
+        // Abre o campo de edição dentro do próprio cabeçalho da coluna
+        iniciar_renomear_coluna(coluna) {
+            if (!this.colunas_tabela.includes(coluna)) return;
+
+            this.coluna_em_edicao = coluna;
+            this.nome_em_edicao = coluna;
+            this.erro_renomear = "";
+            this.fechar_menu_coluna();
+
+            // Espera o input existir para focar e já deixar o nome selecionado
+            this.$nextTick(() => {
+                const input = this.input_renomear();
+                if (!input) return;
+                input.focus();
+                input.select();
+            });
+        },
+
+        input_renomear() {
+            return document.querySelector("[data-renomear-input]");
+        },
+
+        digitou_nome_coluna(event) {
+            this.nome_em_edicao = event.target.value;
+            if (this.erro_renomear) this.erro_renomear = "";
+        },
+
+        cancelar_renomear_coluna() {
+            this.coluna_em_edicao = null;
+            this.nome_em_edicao = "";
+            this.erro_renomear = "";
+        },
+
+        // Enter confirma; se o nome não servir, o campo continua aberto com o aviso
+        confirmar_renomear_coluna() {
+            const coluna_antiga = this.coluna_em_edicao;
+            if (!coluna_antiga) return;
+
+            const novo_nome = String(this.nome_em_edicao || "").trim();
+
+            const mostrar_erro = (mensagem) => {
+                this.erro_renomear = mensagem;
+                this.$nextTick(() => {
+                    const input = this.input_renomear();
+                    if (input) input.focus();
+                });
+            };
+
+            if (!novo_nome) {
+                mostrar_erro("Digite um nome para a coluna");
+                return;
+            }
+
+            // Nome igual (ou só com espaços a mais): apenas fecha o campo
+            if (novo_nome === coluna_antiga) {
+                this.cancelar_renomear_coluna();
+                return;
+            }
+
             if (this.colunas_tabela.includes(novo_nome)) {
-                alert("Já existe uma coluna com esse nome!");
+                mostrar_erro("Já existe uma coluna com esse nome");
                 return;
             }
 
@@ -527,7 +594,7 @@ createApp({
             // 2. Atualiza os dados completos renomeando a chave em cada linha
             this.dados_completos = this.dados_completos.map(linha => {
                 const nova_linha = {};
-                for (let chave in linha) {
+                for (const chave in linha) {
                     if (chave === coluna_antiga) {
                         nova_linha[novo_nome] = linha[chave];
                     } else {
@@ -536,6 +603,24 @@ createApp({
                 }
                 return nova_linha;
             });
+
+            this.cancelar_renomear_coluna();
+        },
+
+        // Sair do campo (clique fora ou Tab) salva quando o nome é válido.
+        // Se estiver vazio ou repetido, apenas fecha o campo para não prender o foco.
+        sair_do_campo_renomear() {
+            if (!this.coluna_em_edicao) return;
+
+            const nome_limpo = String(this.nome_em_edicao || "").trim();
+            const nome_invalido = !nome_limpo || this.colunas_tabela.includes(nome_limpo);
+
+            if (nome_invalido) {
+                this.cancelar_renomear_coluna();
+                return;
+            }
+
+            this.confirmar_renomear_coluna();
         },
 
         ir_para_pagina(pagina) {

@@ -130,6 +130,36 @@
                     </div>
                 </div>
 
+                <!-- Abas da planilha -->
+                <div
+                    v-if="arquivo_selecionado && abas_disponiveis.length > 1"
+                    class="sheet-box"
+                >
+                    <label class="sheet-box__label" for="sheet-select">
+                        <i class="bi bi-layers"></i>
+                        Aba da planilha
+                    </label>
+
+                    <select
+                        id="sheet-select"
+                        v-model="aba_selecionada"
+                        @change="trocar_aba"
+                    >
+                        <option
+                            v-for="aba in abas_disponiveis"
+                            :key="aba"
+                            :value="aba"
+                        >
+                            {{ aba }}
+                        </option>
+                    </select>
+
+                    <span class="sheet-box__hint">
+                        {{ abas_disponiveis.length }} abas encontradas · a troca
+                        recarrega os dados originais da aba
+                    </span>
+                </div>
+
             </section>
 
             <!-- Guia -->
@@ -150,8 +180,10 @@
                         <div class="step__body">
                             <strong>Importe o arquivo</strong>
                             <span>
-                                Arraste a planilha ou use o botão. A primeira aba
-                                do arquivo é carregada automaticamente.
+                                Arraste a planilha ou use o botão. A aba
+                                principal do arquivo é carregada
+                                automaticamente; se houver outras, use o
+                                seletor para alternar.
                             </span>
                         </div>
                     </li>
@@ -186,7 +218,7 @@
                     <i class="bi bi-info-circle"></i>
                     <span>
                         A prévia é paginada, mas as operações são aplicadas
-                        em todas as linhas da planilha.
+                        em todas as linhas da aba selecionada.
                     </span>
                 </div>
             </aside>
@@ -203,6 +235,15 @@
                 </h2>
 
                 <div class="stat-row">
+                    <span
+                        v-if="abas_disponiveis.length > 1"
+                        class="stat"
+                        :title="'Aba: ' + aba_selecionada"
+                    >
+                        <i class="bi bi-layers"></i>
+                        <span class="stat__text">{{ aba_selecionada }}</span>
+                    </span>
+
                     <span class="stat">
                         <i class="bi bi-columns-gap"></i>
                         {{ colunas_tabela.length }} colunas

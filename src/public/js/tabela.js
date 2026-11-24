@@ -2,12 +2,17 @@ import {formatar_tamanho, pegar_primeiro_nome,
         pegar_primeiro_e_segundo_nome, limpar_cpf, formatar_cpf,
         limpar_telefone, formatar_telefone_padrao_meta,
         adicionar_parenteses, formatar_data} from "./utils.js"
-const { createApp } = Vue;
+const { createApp, markRaw } = Vue;
 
 createApp({
     data() {
         return {
             arquivo_selecionado: null,
+
+            // Workbook lido do arquivo (não reativo) e abas disponíveis
+            workbook: null,
+            abas_disponiveis: [],
+            aba_selecionada: "",
 
             dados_completos: [],
             colunas_tabela: [],
@@ -129,9 +134,13 @@ createApp({
 
         remover_arquivo() {
             this.arquivo_selecionado = null;
+            this.workbook = null;
+            this.abas_disponiveis = [];
+            this.aba_selecionada = "";
             this.colunas_tabela = [];
             this.dados_completos = [];
             this.pagina_atual = 1;
+            this.fechar_menu_coluna();
             document.getElementById("file-input").value = "";
         },
         
@@ -146,54 +155,87 @@ createApp({
                     cellDates: true
                 });
 
-                const nome_planilha = workbook.SheetNames[0];
+                // markRaw evita que o Vue torne o workbook inteiro reativo
+                this.workbook = markRaw(workbook);
+                this.abas_disponiveis = [...workbook.SheetNames];
 
-                const planilha = workbook.Sheets[nome_planilha];
+                // Prioriza a aba principal definida no próprio arquivo (activeTab)
+                const visoes = workbook.Workbook
+                    && (workbook.Workbook.WBView || workbook.Workbook.Views);
+                const aba_ativa = Array.isArray(visoes) && visoes[0]
+                    ? Number(visoes[0].activeTab)
+                    : NaN;
 
-                const dados_json = XLSX.utils.sheet_to_json(planilha, {
-                    defval: ""
-                });
+                this.aba_selecionada = Number.isInteger(aba_ativa)
+                    && this.abas_disponiveis[aba_ativa]
+                    ? this.abas_disponiveis[aba_ativa]
+                    : (this.abas_disponiveis[0] || "");
 
-                // Formata as datas
-                this.dados_completos = dados_json.map(linha => {
-
-                    const nova_linha = {};
-
-                    for (let coluna in linha) {
-
-                        const valor = linha[coluna];
-
-                        if (valor instanceof Date) {
-                            nova_linha[coluna] = formatar_data(valor);
-                        } else {
-                            nova_linha[coluna] = valor;
-                        }
-
-                    }
-
-                    return nova_linha;
-                });
-
-                // Usa todos os dados formatados; a paginação controla a exibição
-                this.pagina_atual = 1;
-
-                if (this.dados_completos.length > 0) {
-
-                    this.colunas_tabela = Object.keys(
-                        this.dados_completos[0]
-                    );
-
-                }
+                this.carregar_aba(this.aba_selecionada);
 
             } catch (erro) {
 
                 console.error("Erro ao ler a tabela:", erro);
 
                 this.arquivo_selecionado = null;
+                this.workbook = null;
+                this.abas_disponiveis = [];
+                this.aba_selecionada = "";
                 this.colunas_tabela = [];
                 this.dados_completos = [];
                 this.pagina_atual = 1;
             }
+        },
+
+        // Carrega os dados da aba escolhida a partir do workbook original
+        carregar_aba(nome_aba) {
+            const planilha = nome_aba && this.workbook
+                ? this.workbook.Sheets[nome_aba]
+                : null;
+
+            if (!planilha) {
+                this.dados_completos = [];
+                this.colunas_tabela = [];
+                this.pagina_atual = 1;
+                this.fechar_menu_coluna();
+                return;
+            }
+
+            const dados_json = XLSX.utils.sheet_to_json(planilha, {
+                defval: ""
+            });
+
+            // Formata as datas
+            this.dados_completos = dados_json.map(linha => {
+
+                const nova_linha = {};
+
+                for (let coluna in linha) {
+
+                    const valor = linha[coluna];
+
+                    if (valor instanceof Date) {
+                        nova_linha[coluna] = formatar_data(valor);
+                    } else {
+                        nova_linha[coluna] = valor;
+                    }
+
+                }
+
+                return nova_linha;
+            });
+
+            this.colunas_tabela = this.dados_completos.length > 0
+                ? Object.keys(this.dados_completos[0])
+                : [];
+
+            // A paginação controla apenas a exibição
+            this.pagina_atual = 1;
+            this.fechar_menu_coluna();
+        },
+
+        trocar_aba() {
+            this.carregar_aba(this.aba_selecionada);
         },
         
         abrir_menu_coluna(coluna, event) {
@@ -345,7 +387,12 @@ createApp({
                     opcoes_escrita.FS = ";";
                 }
 
-                XLSX.writeFile(workbook, `tabela_padronizada.${formato}`, opcoes_escrita);
+                // Com mais de uma aba, inclui o nome da aba no arquivo exportado
+                const nome_arquivo = this.abas_disponiveis.length > 1 && this.aba_selecionada
+                    ? `tabela_padronizada_${this.aba_selecionada.replace(/[\\/:*?"<>|]/g, "").trim()}`
+                    : "tabela_padronizada";
+
+                XLSX.writeFile(workbook, `${nome_arquivo}.${formato}`, opcoes_escrita);
             } catch (erro) {
                 console.error("Erro ao gerar e baixar a planilha:", erro);
             }

@@ -417,6 +417,44 @@ body.app-body {
 }
 
 /* --------------------------------------------------------------------------
+   Seleção de abas da planilha
+   -------------------------------------------------------------------------- */
+
+.sheet-box {
+    display: flex;
+    align-items: center;
+    gap: 10px 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding: 11px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface-soft);
+}
+
+.sheet-box__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-500);
+    white-space: nowrap;
+}
+
+.sheet-box__label i {
+    color: var(--brand-600);
+    font-size: 13px;
+}
+
+.sheet-box__hint {
+    margin-left: auto;
+    font-size: 11.5px;
+    color: var(--ink-400);
+}
+
+/* --------------------------------------------------------------------------
    Guia lateral
    -------------------------------------------------------------------------- */
 
@@ -621,6 +659,13 @@ body.app-body {
     color: var(--ink-500);
 }
 
+.stat__text {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .preview-panel__body {
     padding: 20px 24px;
 }
@@ -686,7 +731,8 @@ body.app-body {
 }
 
 .pagination__size select,
-.download-box__format select {
+.download-box__format select,
+.sheet-box select {
     width: auto;
     padding: 4px 26px 4px 9px;
     border: 1px solid var(--line-strong);
@@ -702,7 +748,8 @@ body.app-body {
 }
 
 .pagination__size select:focus-visible,
-.download-box__format select:focus-visible {
+.download-box__format select:focus-visible,
+.sheet-box select:focus-visible {
     outline: 2px solid var(--brand-600);
     outline-offset: 1px;
 }
@@ -1133,6 +1180,11 @@ body.app-body {
 
     .pagination {
         width: 100%;
+    }
+
+    .sheet-box__hint {
+        width: 100%;
+        margin-left: 0;
     }
 
     .pagination__tools {

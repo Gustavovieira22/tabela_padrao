@@ -1,7 +1,7 @@
 import {formatar_tamanho, pegar_primeiro_nome, 
         pegar_primeiro_e_segundo_nome, limpar_cpf, formatar_cpf,
         limpar_telefone, formatar_telefone_padrao_meta,
-        adicionar_parenteses, formatar_data} from "./utils.js"
+        adicionar_parenteses, formatar_data, concatenar_valores} from "./utils.js"
 const { createApp, markRaw } = Vue;
 
 createApp({
@@ -32,6 +32,11 @@ createApp({
             menu_coluna_aberto: null,
             menu_posicao: { top: 0, left: 0 },
 
+            // União de colunas: origem recebe a concatenação e a coluna
+            // escolhida (destino) é removida depois da união
+            unir_colunas_origem: null,
+            unir_colunas_destino: "",
+
             // Renomeação feita no próprio cabeçalho da coluna (sem prompt)
             coluna_em_edicao: null,
             nome_em_edicao: "",
@@ -40,7 +45,8 @@ createApp({
                 "Coluna": ["renomear"],
                 "Nome": ["primeiro_nome", "nome_e_sobrenome"],
                 "CPF": ["cpf_com_ponto", "cpf_sem_ponto"],
-                "Telefone": ["telefone_padrao_meta", "limpa_telefone", "adiciona_parenteses"]
+                "Telefone": ["telefone_padrao_meta", "limpa_telefone", "adiciona_parenteses"],
+                "Combinar": ["unir_colunas"]
             },
 
             // Nomes exibidos no menu da coluna (também usados no histórico)
@@ -52,7 +58,8 @@ createApp({
                 "cpf_sem_ponto": "CPF só com números",
                 "telefone_padrao_meta": "Telefone com 55 no início",
                 "limpa_telefone": "Telefone só com DDD e número",
-                "adiciona_parenteses": "Telefone com parênteses"
+                "adiciona_parenteses": "Telefone com parênteses",
+                "unir_colunas": "Unir colunas"
             },
 
             // Texto de apoio mostrado embaixo do nome no menu da coluna
@@ -64,7 +71,8 @@ createApp({
                 "cpf_sem_ponto": "Remove pontos e traço",
                 "telefone_padrao_meta": "Formato Meta/WhatsApp: 55 + DDD + número",
                 "limpa_telefone": "Remove 55, símbolos e o 9 extra",
-                "adiciona_parenteses": "(11) 99999-9999"
+                "adiciona_parenteses": "(11) 99999-9999",
+                "unir_colunas": "Concatena com outra coluna, sem espaço"
             },
 
             // Pilha de estados anteriores para desfazer as alterações
@@ -141,6 +149,36 @@ createApp({
         ultima_alteracao() {
             const ultima = this.historico[this.historico.length - 1];
             return ultima ? ultima.rotulo : "";
+        },
+
+        // Colunas que podem ser concatenadas com a coluna de origem
+        colunas_para_unir() {
+            if (!this.unir_colunas_origem) return [];
+
+            return this.colunas_tabela.filter(coluna => coluna !== this.unir_colunas_origem);
+        },
+
+        // Exemplo com a primeira linha preenchida, usado na prévia do modal
+        exemplo_uniao() {
+            const origem = this.unir_colunas_origem;
+            const destino = this.unir_colunas_destino;
+
+            if (!origem || !destino) return null;
+
+            const para_texto = (valor) => valor === null || valor === undefined
+                ? ""
+                : String(valor).trim();
+
+            const linha = this.dados_completos.find(item =>
+                concatenar_valores(item[origem], item[destino]) !== "");
+
+            if (!linha) return null;
+
+            return {
+                origem: para_texto(linha[origem]),
+                destino: para_texto(linha[destino]),
+                resultado: concatenar_valores(linha[origem], linha[destino])
+            };
         }
     },
 
@@ -185,6 +223,7 @@ createApp({
             this.pagina_atual = 1;
             this.historico = [];
             this.fechar_menu_coluna();
+            this.fechar_unir_colunas();
             this.cancelar_renomear_coluna();
             document.getElementById("file-input").value = "";
         },
@@ -236,6 +275,7 @@ createApp({
         // Carrega os dados da aba escolhida a partir do workbook original
         carregar_aba(nome_aba) {
             this.cancelar_renomear_coluna();
+            this.fechar_unir_colunas();
 
             const planilha = nome_aba && this.workbook
                 ? this.workbook.Sheets[nome_aba]
@@ -359,6 +399,12 @@ createApp({
                 return;
             }
 
+            // União de colunas tem uma segunda etapa: escolher a outra coluna
+            if (operacao === "unir_colunas") {
+                this.iniciar_unir_colunas(coluna);
+                return;
+            }
+
             const transformacoes = {
                 primeiro_nome: pegar_primeiro_nome,
                 nome_e_sobrenome: pegar_primeiro_e_segundo_nome,
@@ -465,6 +511,77 @@ createApp({
                 delete nova_linha[coluna];
                 return nova_linha;
             });
+        },
+
+        // Abre o seletor da segunda coluna que será concatenada com a atual
+        iniciar_unir_colunas(coluna) {
+            if (!this.colunas_tabela.includes(coluna)) return;
+
+            this.fechar_menu_coluna();
+            this.cancelar_renomear_coluna();
+
+            if (this.colunas_tabela.length < 2) {
+                console.warn("É preciso ter pelo menos duas colunas para unir.");
+                return;
+            }
+
+            this.unir_colunas_origem = coluna;
+            this.unir_colunas_destino = "";
+        },
+
+        fechar_unir_colunas() {
+            this.unir_colunas_origem = null;
+            this.unir_colunas_destino = "";
+        },
+
+        // Concatena as duas colunas linha por linha, sem espaço entre os valores.
+        // O resultado fica na coluna de origem e a coluna escolhida é removida.
+        confirmar_unir_colunas() {
+            const origem = this.unir_colunas_origem;
+            const destino = this.unir_colunas_destino;
+
+            if (!origem || !destino || origem === destino) return;
+
+            if (!this.colunas_tabela.includes(origem) || !this.colunas_tabela.includes(destino)) return;
+
+            this.registrar_alteracao(`Unir colunas · ${origem} + ${destino}`);
+
+            this.dados_completos = this.dados_completos.map(linha => {
+                const nova_linha = {};
+                let uniu = false;
+
+                for (const chave in linha) {
+                    if (chave === destino) continue;
+
+                    if (chave === origem) {
+                        nova_linha[chave] = concatenar_valores(linha[origem], linha[destino]);
+                        uniu = true;
+                        continue;
+                    }
+
+                    nova_linha[chave] = linha[chave];
+                }
+
+                // Linha sem a coluna de origem ainda recebe o resultado
+                if (!uniu) {
+                    nova_linha[origem] = concatenar_valores(linha[origem], linha[destino]);
+                }
+
+                return nova_linha;
+            });
+
+            this.colunas_tabela = this.colunas_tabela.filter(coluna => coluna !== destino);
+
+            this.fechar_unir_colunas();
+            this.fechar_menu_coluna();
+        },
+
+        // Esc fecha o seletor de união de colunas
+        atalho_fechar_uniao(event) {
+            if (event.key !== "Escape" || !this.unir_colunas_origem) return;
+
+            event.preventDefault();
+            this.fechar_unir_colunas();
         },
 
         baixar_tabela_padronizada() {
@@ -648,6 +765,7 @@ createApp({
     mounted() {
         document.addEventListener("click", this.handle_clique_fora);
         document.addEventListener("keydown", this.atalho_desfazer);
+        document.addEventListener("keydown", this.atalho_fechar_uniao);
         // Adiciona os eventos de Drag and Drop
         const dropArea = document.getElementById("drop-area");
         if (dropArea) {
@@ -659,6 +777,7 @@ createApp({
     beforeUnmount() {
         document.removeEventListener("click", this.handle_clique_fora);
         document.removeEventListener("keydown", this.atalho_desfazer);
+        document.removeEventListener("keydown", this.atalho_fechar_uniao);
 
         // Remove os eventos para evitar vazamento de memória
         const dropArea = document.getElementById("drop-area");

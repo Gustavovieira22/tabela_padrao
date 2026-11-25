@@ -195,7 +195,8 @@
                             <strong>Trate as colunas</strong>
                             <span>
                                 No cabeçalho da tabela, use a engrenagem para
-                                renomear, limpar CPF ou padronizar telefones.
+                                renomear, limpar CPF, padronizar telefones ou
+                                unir duas colunas em uma só.
                             </span>
                         </div>
                     </li>
@@ -522,6 +523,117 @@
                         </span>
                     </button>
                 </template>
+            </div>
+        </teleport>
+
+        <!-- Seletor da segunda coluna para unir (concatenação sem espaço) -->
+        <teleport to="body">
+            <div
+                v-if="unir_colunas_origem"
+                class="merge-overlay"
+                @click.self="fechar_unir_colunas"
+            >
+                <div
+                    class="merge-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="merge-modal-title"
+                >
+                    <header class="merge-modal__head">
+                        <h2 id="merge-modal-title" class="merge-modal__title">
+                            <i class="bi bi-link-45deg"></i>
+                            Unir colunas
+                        </h2>
+
+                        <button
+                            type="button"
+                            class="icon-btn"
+                            title="Fechar (Esc)"
+                            @click="fechar_unir_colunas"
+                        >
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </header>
+
+                    <div class="merge-modal__body">
+                        <p class="merge-modal__intro">
+                            Escolha a coluna que será concatenada com
+                            <strong>{{ unir_colunas_origem }}</strong>.
+                            Os valores são juntados linha por linha, sem espaço
+                            entre eles, e o resultado fica em
+                            <strong>{{ unir_colunas_origem }}</strong>.
+                            A coluna escolhida é removida depois da união.
+                        </p>
+
+                        <label class="merge-modal__label" for="merge-target">
+                            Concatenar com a coluna
+                        </label>
+
+                        <select
+                            id="merge-target"
+                            v-model="unir_colunas_destino"
+                            class="merge-modal__select"
+                        >
+                            <option value="">Selecione uma coluna…</option>
+
+                            <option
+                                v-for="coluna in colunas_para_unir"
+                                :key="coluna"
+                                :value="coluna"
+                            >
+                                {{ coluna }}
+                            </option>
+                        </select>
+
+                        <div v-if="unir_colunas_destino" class="merge-preview">
+                            <span class="merge-preview__label">
+                                Prévia da primeira linha preenchida
+                            </span>
+
+                            <p v-if="exemplo_uniao" class="merge-preview__row">
+                                <span class="merge-preview__part">
+                                    {{ exemplo_uniao.origem || '—' }}
+                                </span>
+
+                                <span class="merge-preview__plus">+</span>
+
+                                <span class="merge-preview__part">
+                                    {{ exemplo_uniao.destino || '—' }}
+                                </span>
+
+                                <i class="bi bi-arrow-right"></i>
+
+                                <strong class="merge-preview__result">
+                                    {{ exemplo_uniao.resultado || '—' }}
+                                </strong>
+                            </p>
+
+                            <p v-else class="merge-preview__row merge-preview__row--empty">
+                                As duas colunas estão vazias nas linhas disponíveis.
+                            </p>
+                        </div>
+                    </div>
+
+                    <footer class="merge-modal__foot">
+                        <button
+                            type="button"
+                            class="btn-ghost"
+                            @click="fechar_unir_colunas"
+                        >
+                            Cancelar
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn-brand"
+                            :disabled="!unir_colunas_destino"
+                            @click="confirmar_unir_colunas"
+                        >
+                            <i class="bi bi-link-45deg"></i>
+                            Unir colunas
+                        </button>
+                    </footer>
+                </div>
             </div>
         </teleport>
 

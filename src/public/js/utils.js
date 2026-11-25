@@ -104,6 +104,19 @@ export function adicionar_parenteses(telefone) {
     return `(${ddd})${numero_com_nove.slice(0, 5)}-${numero_com_nove.slice(5)}`;
 }
 
+// Junta dois valores em um único texto, sem espaço entre eles
+export function concatenar_valores(primeiro, segundo) {
+    const parte_1 = primeiro === null || primeiro === undefined
+        ? ""
+        : String(primeiro).trim();
+
+    const parte_2 = segundo === null || segundo === undefined
+        ? ""
+        : String(segundo).trim();
+
+    return parte_1 + parte_2;
+}
+
 export function formatar_data(valor) {
     if (!valor) return "";
     

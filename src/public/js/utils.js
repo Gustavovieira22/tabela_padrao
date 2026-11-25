@@ -1,3 +1,23 @@
+// Erro disparado quando um valor não pode ser padronizado.
+// Quem chama decide o que fazer: na interface o valor original é preservado
+// e o registro vai para a aba "Erros" do arquivo baixado.
+export class ErroPadronizacao extends Error {
+    constructor(motivo) {
+        super(motivo);
+        this.name = "ErroPadronizacao";
+        this.motivo = motivo;
+    }
+}
+
+// Célula vazia não é erro: não há o que padronizar, então ela continua vazia
+function valor_vazio(valor) {
+    return valor === null || valor === undefined || String(valor).trim() === "";
+}
+
+function apenas_numeros(valor) {
+    return String(valor).replace(/\D/g, "");
+}
+
 export function formatar_tamanho(bytes) {
     if (bytes < 1024) 
         return `${bytes} Bytes`;
@@ -43,24 +63,45 @@ export function pegar_primeiro_e_segundo_nome(nome_completo) {
 }
 
 export function formatar_cpf(cpf) {
-    if (!cpf) return "";
+    if (valor_vazio(cpf)) return "";
 
-    const numeros = String(cpf).replace(/\D/g, "");
+    const numeros = apenas_numeros(cpf);
 
-    if (numeros.length !== 11) return numeros;
+    if (!numeros) {
+        throw new ErroPadronizacao("Nenhum número encontrado no CPF");
+    }
+
+    if (numeros.length !== 11) {
+        throw new ErroPadronizacao(`CPF com ${numeros.length} dígito(s), esperado 11`);
+    }
 
     return numeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
 
 export function limpar_cpf(cpf) {
-    if (!cpf) return "";
-    return String(cpf).replace(/\D/g, "");
+    if (valor_vazio(cpf)) return "";
+
+    const numeros = apenas_numeros(cpf);
+
+    if (!numeros) {
+        throw new ErroPadronizacao("Nenhum número encontrado no CPF");
+    }
+
+    if (numeros.length !== 11) {
+        throw new ErroPadronizacao(`CPF com ${numeros.length} dígito(s), esperado 11`);
+    }
+
+    return numeros;
 }
 
 export function limpar_telefone(telefone) {
-    if (!telefone) return "ERROR";
+    if (valor_vazio(telefone)) return "";
 
-    let numeros = String(telefone).replace(/\D/g, "");
+    let numeros = apenas_numeros(telefone);
+
+    if (!numeros) {
+        throw new ErroPadronizacao("Nenhum número encontrado no telefone");
+    }
 
     // Remove 55 do início
     if (numeros.startsWith("55") && (numeros.length === 12 || numeros.length === 13)) {
@@ -74,7 +115,7 @@ export function limpar_telefone(telefone) {
 
     // No final, o esperado é DDD + telefone = 10 dígitos
     if (numeros.length !== 10) {
-        return "ERROR";
+        throw new ErroPadronizacao(`Telefone com ${numeros.length} dígito(s) após a limpeza, esperado 10`);
     }
 
     return numeros;
@@ -83,9 +124,7 @@ export function limpar_telefone(telefone) {
 export function formatar_telefone_padrao_meta(telefone) {
     const telefone_limpo = limpar_telefone(telefone);
 
-    if (telefone_limpo === "ERROR") {
-        return "ERROR";
-    }
+    if (telefone_limpo === "") return "";
 
     return "55" + telefone_limpo;
 }
@@ -93,9 +132,7 @@ export function formatar_telefone_padrao_meta(telefone) {
 export function adicionar_parenteses(telefone) {
     const telefone_limpo = limpar_telefone(telefone);
 
-    if (telefone_limpo === "ERROR") {
-        return "ERROR";
-    }
+    if (telefone_limpo === "") return "";
 
     const ddd = telefone_limpo.slice(0, 2);
     const numero = telefone_limpo.slice(2); // 8 dígitos

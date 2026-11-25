@@ -17,6 +17,11 @@ createApp({
             dados_completos: [],
             colunas_tabela: [],
 
+            // Valores que não puderam ser padronizados. Eles saem da tabela
+            // principal (a célula fica vazia) e o registro, com o valor
+            // original, vai para a aba "Erros" do arquivo baixado.
+            erros: [],
+
             pagina_atual: 1,
             linhas_por_pagina: 10,
             opcoes_linhas_por_pagina: [10, 25, 50, 100, 0],
@@ -98,7 +103,13 @@ createApp({
 
         dados_tabela() {
             const inicio = (this.pagina_atual - 1) * this.tamanho_pagina;
-            return this.dados_completos.slice(inicio, inicio + this.tamanho_pagina);
+            const linhas = this.dados_completos.slice(inicio, inicio + this.tamanho_pagina);
+
+            if (this.erros.length === 0) return linhas;
+
+            // Valor não padronizado não é exibido: a célula aparece vazia e o
+            // conteúdo original só é mostrado na aba "Erros" do download
+            return this.remover_valores_com_erro(linhas, inicio);
         },
 
         inicio_exibicao() {
@@ -143,6 +154,34 @@ createApp({
 
         pode_desfazer() {
             return this.historico.length > 0;
+        },
+
+        total_erros() {
+            return this.erros.length;
+        },
+
+        // Células com valor não padronizado, no formato "linha|coluna"
+        celulas_com_erro() {
+            return new Set(this.erros.map(erro => `${erro.linha}|${erro.coluna}`));
+        },
+
+        // CSV não suporta mais de uma aba: quando existem erros, o arquivo
+        // precisa sair em XLSX para levar a aba "Erros"
+        formato_efetivo_download() {
+            if (this.erros.length > 0 && this.formato_download === "csv") {
+                return "xlsx";
+            }
+
+            return this.formato_download || "csv";
+        },
+
+        aviso_formato_download() {
+            if (this.erros.length === 0 || this.formato_download !== "csv") {
+                return "";
+            }
+
+            return "O CSV não suporta múltiplas abas. Para incluir a aba Erros, "
+                + "o arquivo será baixado em XLSX.";
         },
 
         // Rótulo da alteração que o botão Desfazer vai reverter
@@ -220,6 +259,7 @@ createApp({
             this.aba_selecionada = "";
             this.colunas_tabela = [];
             this.dados_completos = [];
+            this.erros = [];
             this.pagina_atual = 1;
             this.historico = [];
             this.fechar_menu_coluna();
@@ -267,6 +307,7 @@ createApp({
                 this.aba_selecionada = "";
                 this.colunas_tabela = [];
                 this.dados_completos = [];
+                this.erros = [];
                 this.pagina_atual = 1;
                 this.historico = [];
             }
@@ -284,6 +325,7 @@ createApp({
             if (!planilha) {
                 this.dados_completos = [];
                 this.colunas_tabela = [];
+                this.erros = [];
                 this.pagina_atual = 1;
                 this.historico = [];
                 this.fechar_menu_coluna();
@@ -320,8 +362,9 @@ createApp({
 
             // A paginação controla apenas a exibição
             this.pagina_atual = 1;
-            // O histórico pertence aos dados da aba carregada
+            // O histórico e os erros pertencem aos dados da aba carregada
             this.historico = [];
+            this.erros = [];
             this.fechar_menu_coluna();
         },
 
@@ -418,7 +461,7 @@ createApp({
             const transformacao = transformacoes[operacao];
 
             if (transformacao) {
-                const rotulo = `${this.rotulos_operacoes[operacao] || operacao} · ${coluna}`;
+                const rotulo = this.rotulos_operacoes[operacao] || operacao;
                 this.aplicar_na_coluna(coluna, transformacao, rotulo);
             }
 
@@ -426,25 +469,80 @@ createApp({
         },
 
         // Aplica uma transformação em toda a coluna e registra o estado anterior.
-        // Não gera histórico quando nenhum valor é alterado.
+        // Valores que não puderam ser padronizados são registrados na lista de
+        // erros (aba "Erros" do download) e somem da tabela principal: o valor
+        // original continua guardado aqui, mas não é exibido nem exportado.
+        // Não gera histórico quando nenhum valor é alterado e nenhum erro aparece.
         aplicar_na_coluna(coluna, transformacao, rotulo) {
             let alterou = false;
 
-            const novos_dados = this.dados_completos.map(linha => {
+            const novos_erros = [];
+
+            const novos_dados = this.dados_completos.map((linha, indice) => {
                 const valor_atual = linha[coluna];
-                const novo_valor = transformacao(valor_atual);
+
+                let novo_valor;
+
+                try {
+                    novo_valor = transformacao(valor_atual);
+                } catch (erro) {
+                    novos_erros.push({
+                        // Linha da tabela sem contar o cabeçalho (1 = primeira linha)
+                        linha: indice + 1,
+                        coluna,
+                        valor_original: valor_atual,
+                        operacao: rotulo,
+                        motivo: (erro && erro.motivo)
+                            || (erro && erro.message)
+                            || "Erro ao padronizar o valor"
+                    });
+
+                    // O valor original fica guardado na linha para permitir
+                    // desfazer e reaplicar outra operação; na hora de exibir e
+                    // exportar, as células com erro aparecem vazias
+                    return { ...linha, [coluna]: valor_atual };
+                }
 
                 if (novo_valor !== valor_atual) alterou = true;
 
                 return { ...linha, [coluna]: novo_valor };
             });
 
-            if (!alterou) return false;
+            if (!alterou && novos_erros.length === 0) return false;
 
-            this.registrar_alteracao(rotulo);
+            this.registrar_alteracao(`${rotulo} · ${coluna}`);
             this.dados_completos = novos_dados;
+            this.substituir_erros_da_coluna(coluna, novos_erros);
 
             return true;
+        },
+
+        // Devolve as linhas sem os valores que não foram padronizados: a célula
+        // fica vazia e o valor original aparece apenas na aba "Erros".
+        // "deslocamento" é a quantidade de linhas que ficou para trás na paginação.
+        remover_valores_com_erro(linhas, deslocamento = 0) {
+            const falhas = this.celulas_com_erro;
+
+            return linhas.map((linha, indice) => {
+                // Os erros usam a numeração da linha na tabela (1 = primeira)
+                const numero_linha = deslocamento + indice + 1;
+                const nova_linha = { ...linha };
+
+                this.colunas_tabela.forEach(coluna => {
+                    if (falhas.has(`${numero_linha}|${coluna}`)) nova_linha[coluna] = "";
+                });
+
+                return nova_linha;
+            });
+        },
+
+        // Ao aplicar uma operação na coluna, os erros anteriores dela são
+        // substituídos pelo resultado atual (o valor pode ter sido corrigido)
+        substituir_erros_da_coluna(coluna, novos_erros) {
+            this.erros = [
+                ...this.erros.filter(erro => erro.coluna !== coluna),
+                ...novos_erros
+            ];
         },
 
         // Guarda o estado anterior na pilha de desfazer.
@@ -454,6 +552,7 @@ createApp({
             this.historico.push({
                 dados: this.dados_completos,
                 colunas: this.colunas_tabela,
+                erros: this.erros,
                 rotulo
             });
 
@@ -468,6 +567,7 @@ createApp({
 
             this.dados_completos = estado_anterior.dados;
             this.colunas_tabela = estado_anterior.colunas;
+            this.erros = estado_anterior.erros || [];
 
             this.fechar_menu_coluna();
             this.cancelar_renomear_coluna();
@@ -505,6 +605,9 @@ createApp({
             this.registrar_alteracao(`Apagar coluna · ${coluna}`);
 
             this.colunas_tabela = this.colunas_tabela.filter(c => c !== coluna);
+
+            // A coluna deixou de existir: seus erros não fazem mais sentido
+            this.erros = this.erros.filter(erro => erro.coluna !== coluna);
 
             this.dados_completos = this.dados_completos.map(linha => {
                 const nova_linha = { ...linha };
@@ -572,6 +675,10 @@ createApp({
 
             this.colunas_tabela = this.colunas_tabela.filter(coluna => coluna !== destino);
 
+            // As duas colunas mudaram (uma recebeu a concatenação e a outra foi
+            // removida), então os erros antigos delas deixam de valer
+            this.erros = this.erros.filter(erro => erro.coluna !== origem && erro.coluna !== destino);
+
             this.fechar_unir_colunas();
             this.fechar_menu_coluna();
         },
@@ -582,6 +689,49 @@ createApp({
 
             event.preventDefault();
             this.fechar_unir_colunas();
+        },
+
+        // Monta as linhas da aba "Erros" na ordem em que aparecem na planilha
+        erros_para_exportacao() {
+            return [...this.erros]
+                .sort((a, b) => a.linha - b.linha
+                    || String(a.coluna).localeCompare(String(b.coluna), "pt-BR"))
+                .map(erro => ({
+                    // +1 por causa da linha de cabeçalho da planilha
+                    "Linha na planilha": erro.linha + 1,
+                    "Coluna": erro.coluna,
+                    "Valor original": erro.valor_original === null || erro.valor_original === undefined
+                        ? ""
+                        : erro.valor_original,
+                    "Operação": erro.operacao,
+                    "Motivo": erro.motivo
+                }));
+        },
+
+        adicionar_aba_erros(workbook) {
+            const dados_erros = this.erros_para_exportacao();
+
+            if (dados_erros.length === 0) return;
+
+            const cabecalho = [
+                "Linha na planilha",
+                "Coluna",
+                "Valor original",
+                "Operação",
+                "Motivo"
+            ];
+
+            const worksheet = XLSX.utils.json_to_sheet(dados_erros, { header: cabecalho });
+
+            worksheet["!cols"] = [
+                { wch: 18 },
+                { wch: 26 },
+                { wch: 30 },
+                { wch: 40 },
+                { wch: 54 }
+            ];
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Erros");
         },
 
         baixar_tabela_padronizada() {
@@ -600,13 +750,20 @@ createApp({
                     return nova_linha;
                 });
 
+                // A aba principal leva só os valores padronizados: o que falhou
+                // fica vazio e é listado, com o valor original, na aba "Erros"
+                const dados_padronizados = this.remover_valores_com_erro(dados_filtrados);
+
                 // Cria uma nova planilha do Excel utilizando os dados tratados
-                const worksheet = XLSX.utils.json_to_sheet(dados_filtrados);
+                const worksheet = XLSX.utils.json_to_sheet(dados_padronizados);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Dados Padronizados");
 
+                // Valores que não puderam ser padronizados vão para uma segunda aba
+                this.adicionar_aba_erros(workbook);
+
                 // Formato escolhido pelo usuário (CSV é o padrão)
-                const formato = this.formato_download || "csv";
+                const formato = this.formato_efetivo_download;
                 const opcoes_escrita = { bookType: formato };
 
                 if (formato === "csv") {
@@ -720,6 +877,11 @@ createApp({
                 }
                 return nova_linha;
             });
+
+            // A aba de erros acompanha o novo nome da coluna
+            this.erros = this.erros.map(erro => erro.coluna === coluna_antiga
+                ? { ...erro, coluna: novo_nome }
+                : erro);
 
             this.cancelar_renomear_coluna();
         },

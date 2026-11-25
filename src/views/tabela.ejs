@@ -209,7 +209,10 @@
                             <span>
                                 Escolha o formato (CSV, XLSX, XLS ou ODS) e
                                 exporte a versão padronizada, pronta para
-                                importar no seu sistema.
+                                importar no seu sistema. Valores que não
+                                puderam ser padronizados saem da planilha e
+                                são listados na aba Erros, com o valor
+                                original.
                             </span>
                         </div>
                     </li>
@@ -262,6 +265,16 @@
                         <span class="stat stat--muted">
                             <i class="bi bi-list-ol"></i>
                             {{ total_linhas }} linhas
+                        </span>
+
+                        <span
+                            v-if="total_erros > 0"
+                            class="stat stat--alerta"
+                            title="Valores que não puderam ser padronizados. Eles saem da tabela e são listados na aba Erros do arquivo baixado, com o valor original."
+                        >
+                            <i class="bi bi-exclamation-triangle"></i>
+                            {{ total_erros }}
+                            {{ total_erros === 1 ? 'valor não padronizado' : 'valores não padronizados' }}
                         </span>
                     </div>
 
@@ -455,6 +468,11 @@
                 </div>
 
                 <div class="download-box">
+                    <p v-if="aviso_formato_download" class="download-box__aviso">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>{{ aviso_formato_download }}</span>
+                    </p>
+
                     <label class="download-box__format">
                         Formato
                         <select v-model="formato_download">
